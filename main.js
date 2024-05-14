@@ -274,7 +274,7 @@ loader.load(
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.6;
 renderer.outputEncoding = THREE.sRGBEncoding;
-new RGBELoader().load('/images/ocean_bluewater_phil.hdr', function (texture) {
+new RGBELoader().load('/public/images/ocean_bluewater_phil.hdr', function (texture) {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.background = texture;
     scene.environment = texture;
