@@ -141,7 +141,7 @@ function loadAndPlaceShark(modelPath, callback) {
 
 // Laden des Quest-Headset-Modells
 loader.load(
-    '/public/models/quest3.gltf',
+    '/models/quest3.gltf',
     function (gltf) {
         questModel = gltf.scene;
         scene.add(questModel);
@@ -168,13 +168,13 @@ loader.load(
         camera.lookAt(center);
 
         // Laden und Platzieren des ersten Hais
-        loadAndPlaceShark('/public/models/Angelote/AngelShark.gltf', (model, mixer) => {
+        loadAndPlaceShark('/models/Angelote/AngelShark.gltf', (model, mixer) => {
             sharkModel = model;
             sharkModel.position.copy(center);
             sharkModel.position.y += sharkHeightY;
 
             // Laden und Platzieren des zweiten Hais
-            loadAndPlaceShark('/public/models/Angelote/AngelShark.gltf', (model2, mixer2) => {
+            loadAndPlaceShark('/models/Angelote/AngelShark.gltf', (model2, mixer2) => {
                 secondSharkModel = model2;
                 secondSharkModel.position.copy(center);
                 secondSharkModel.position.y += sharkHeightY + secondSharkYOffset;
@@ -274,7 +274,7 @@ loader.load(
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.6;
 renderer.outputEncoding = THREE.sRGBEncoding;
-new RGBELoader().load('/public/images/ocean_bluewater_phil.hdr', function (texture) {
+new RGBELoader().load('/images/ocean_bluewater_phil.hdr', function (texture) {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.background = texture;
     scene.environment = texture;
