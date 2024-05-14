@@ -141,7 +141,7 @@ function loadAndPlaceShark(modelPath, callback) {
 
 // Laden des Quest-Headset-Modells
 loader.load(
-    '/models/quest3.gltf',
+    'public/models/quest3.gltf',
     function (gltf) {
         questModel = gltf.scene;
         scene.add(questModel);
@@ -168,13 +168,13 @@ loader.load(
         camera.lookAt(center);
 
         // Laden und Platzieren des ersten Hais
-        loadAndPlaceShark('/models/Angelote/AngelShark.gltf', (model, mixer) => {
+        loadAndPlaceShark('public/models/Angelote/AngelShark.gltf', (model, mixer) => {
             sharkModel = model;
             sharkModel.position.copy(center);
             sharkModel.position.y += sharkHeightY;
 
             // Laden und Platzieren des zweiten Hais
-            loadAndPlaceShark('/models/Angelote/AngelShark.gltf', (model2, mixer2) => {
+            loadAndPlaceShark('public/models/Angelote/AngelShark.gltf', (model2, mixer2) => {
                 secondSharkModel = model2;
                 secondSharkModel.position.copy(center);
                 secondSharkModel.position.y += sharkHeightY + secondSharkYOffset;
