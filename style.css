@@ -15,23 +15,26 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: hsla(215, 70%, 17%, 0.722);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #082044;
 }
 
 body {
   margin: 0;
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
 h1 {
-  font-size: 3.2em;
+  font-size: 2.5em; /* Kleinere Schriftgröße */
   line-height: 1.1;
 }
 
@@ -93,4 +96,37 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* Neue CSS-Regeln für Titel und Schieberegler */
+#title-container {
+  position: absolute;
+  top: 50px;
+  width: 100%;
+  text-align: center;
+  color: white;
+  z-index: 10;
+}
+#title-container h1 {
+  font-family: 'Times New Roman', serif;
+  font-size: 36px; /* Kleinere Schriftgröße */
+  margin: 0;
+}
+#title-container h2 {
+  font-family: 'Helvetica', sans-serif;
+  font-size: 18px; /* Kleinere Schriftgröße */
+  margin: 0;
+}
+#controls {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+.slider {
+  width: 200px;
 }
