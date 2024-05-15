@@ -44,15 +44,85 @@
       .slider {
           width: 200px;
       }
+      /* Ladeanzeige */
+      #loading-screen {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #242424;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-family: Arial, sans-serif;
+          z-index: 100;
+      }
+      #loading-bar-container {
+          width: 80%;
+          height: 20px;
+          background: #555;
+          margin-top: 20px;
+          border-radius: 10px;
+          overflow: hidden;
+      }
+      #loading-bar {
+          width: 0;
+          height: 100%;
+          background: #4caf50;
+          border-radius: 10px;
+      }
+      #loading-text {
+          margin-top: 20px;
+      }
+      /* Joysticks */
+      .joystick-container {
+          position: absolute;
+          bottom: 20px;
+          width: 80px;
+          height: 80px;
+          background: rgba(255, 255, 255, 0.8);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+      }
+      .joystick {
+          width: 40px;
+          height: 40px;
+          background: #4caf50;
+          border-radius: 50%;
+      }
+      #left-joystick {
+          left: 20px;
+      }
+      #right-joystick {
+          right: 20px;
+      }
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="loading-screen">
+      <div id="loading-bar-container">
+        <div id="loading-bar"></div>
+      </div>
+      <p id="loading-text">Loading...</p>
+    </div>
+    <div id="app" style="display:none;"></div>
     <div id="title-container">
         <h1>GRAN CANARIA</h1>
         <h2>beneath the surface - test</h2>
     </div>
     <div id="controls"></div>
+    <div id="left-joystick" class="joystick-container">
+        <div class="joystick"></div>
+    </div>
+    <div id="right-joystick" class="joystick-container">
+        <div class="joystick"></div>
+    </div>
     <canvas class="webgl"></canvas>
     <script type="module" src="/main.js"></script>
   </body>

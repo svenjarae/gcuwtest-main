@@ -10,7 +10,24 @@ import { RGBELoader } from '/node_modules/three/examples/jsm/loaders/RGBELoader.
 const canvas = document.querySelector('canvas.webgl');
 const scene = new THREE.Scene();
 
-// Wasser Effekt - Nebel, um die Distanz zum HDRi zu verstärken, weiter unten hab ich noch Partikel hinzugefügt, finde sie noch etwas schnell aber generel nice.
+const loadingScreen = document.getElementById('loading-screen');
+const loadingBar = document.getElementById('loading-bar');
+const app = document.getElementById('app');
+
+let assetsLoaded = 0;
+const totalAssets = 4;  // Update this if you add more assets
+
+function updateLoadingBar() {
+  assetsLoaded++;
+  const progress = assetsLoaded / totalAssets;
+  loadingBar.style.width = progress * 100 + '%';
+  if (progress === 1) {
+    loadingScreen.style.display = 'none';
+    app.style.display = 'block';
+  }
+}
+
+// Wasser Effekt - Nebel, um die Distanz zum HDRi zu verstärken
 const fogColor = new THREE.Color(0x082044);
 const fogNear = 10;
 const fogFar = 400;
@@ -19,9 +36,18 @@ scene.fog = new THREE.Fog(fogColor, fogNear, fogFar);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimierung der Pixeldichte
 document.body.appendChild(renderer.domElement);
 
-// Loader für die 3D-Modelle - du kannst auch eigene Modelle hochladen oder mir sagen, welche ich noch erstellen könnte. Hammerhai, FIsche? Barracuda schwärme? Sollte halt nie zuviel werden.
+// Licht hinzufügen, um die Fische besser sichtbar zu machen
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+directionalLight.position.set(0, 1, 0).normalize();
+scene.add(directionalLight);
+
+// Loader für die 3D-Modelle
 const loader = new GLTFLoader();
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('/node_modules/three/examples/jsm/libs/draco/');
@@ -49,24 +75,109 @@ const secondSharkYOffset = 100 + (Math.random() * 100);  // Zufällige Versetzun
 let mouse = new THREE.Vector2();
 let questDistanceThreshold = 100; // Abstandsschwelle für Quest-Rotation stoppen
 
-// Partikel erstellen
-const particles = [];
-const particleCount = 6000;  // Reduzierte Partikelanzahl
-const particleRadius = 0.5;  // Kleine Partikel
-const particleMaterial = new THREE.MeshBasicMaterial({ color: 0x4444ff, transparent: true, opacity: 0.1 });  // Durchsichtigeres, entsättigtes Material
+// Partikel erstellen mit Instanced Meshes
+const particleCount = 2000;  // Reduzierte Partikelanzahl
+const particleGeometry = new THREE.SphereGeometry(0.25, 8, 8); // Vergrößerte Partikel
+const particleMaterial = new THREE.MeshBasicMaterial({ color: 0x4444ff, transparent: true, opacity: 0.1 });
+
+const particles = new THREE.InstancedMesh(particleGeometry, particleMaterial, particleCount);
+const dummy = new THREE.Object3D();
 
 for (let i = 0; i < particleCount; i++) {
-    const geometry = new THREE.SphereGeometry(particleRadius, 8, 8);
-    const particle = new THREE.Mesh(geometry, particleMaterial);
-
-    particle.position.set(
-        (Math.random() - 0.5) * 500, // Weiter verengte Distanz
-        (Math.random() - 0.5) * 500, // Weiter verengte Distanz
-        (Math.random() - 0.5) * 500  // Weiter verengte Distanz
+    dummy.position.set(
+        (Math.random() - 0.5) * 500,
+        (Math.random() - 0.5) * 500,
+        (Math.random() - 0.5) * 500
     );
+    dummy.updateMatrix();
+    particles.setMatrixAt(i, dummy.matrix);
+}
 
-    scene.add(particle);
-    particles.push(particle);
+scene.add(particles);
+updateLoadingBar();
+
+// Funktion zum Erstellen eines Fischschwarms
+const createFishSwarm = (fishCount, fishOrbitRadius, fishHeightY, fishSpeed, fishYOffset) => {
+    const fishGeometry = new THREE.SphereGeometry(1, 16, 16);  // Geometrie für die Fische (Sphären)
+    const fishMaterial = new THREE.MeshStandardMaterial({ color: 0x00008b, side: THREE.DoubleSide, roughness: 0.5, metalness: 1 });  // Dunkelblaue, reflektierende Fische
+
+    const fishGroup = new THREE.Group();
+    for (let i = 0; i < fishCount; i++) {
+        const fish = new THREE.Mesh(fishGeometry, fishMaterial);
+        fish.scale.set(1, 0.5, 1);  // Skalierung zu Ovalen
+        fish.position.set(
+            (Math.random() - 0.5) * 300,
+            (Math.random() - 0.5) * 300,
+            (Math.random() - 0.5) * 300
+        );
+        fish.rotation.set(0, Math.random() * Math.PI * 2, 0);
+        fish.userData.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * fishSpeed,
+            (Math.random() - 0.5) * fishSpeed,
+            (Math.random() - 0.5) * fishSpeed
+        );
+        fishGroup.add(fish);
+    }
+    scene.add(fishGroup);
+
+    return { fishGroup, fishOrbitRadius, fishHeightY, fishSpeed, fishYOffset };
+};
+
+// Erstellen Sie zwei Fischschwärme
+const fishSwarms = [
+    createFishSwarm(200, 200, 500, 0.00025, 0),
+    createFishSwarm(200, 200, 500, 0.0002, 0.5 * Math.PI)
+];
+updateLoadingBar();
+
+// Regeln für Schwarmverhalten
+const separationDistance = 15;
+const alignmentDistance = 50;
+const cohesionDistance = 50;
+const maxVelocity = 0.01;
+const avoidSpeed = 0.05;
+
+function applyBoidsRules(fish, neighbors) {
+    let separation = new THREE.Vector3();
+    let alignment = new THREE.Vector3();
+    let cohesion = new THREE.Vector3();
+    let count = 0;
+
+    neighbors.forEach(neighbor => {
+        const distance = fish.position.distanceTo(neighbor.position);
+        if (distance > 0 && distance < separationDistance) {
+            let diff = new THREE.Vector3().subVectors(fish.position, neighbor.position);
+            diff.divideScalar(distance);
+            separation.add(diff);
+        }
+        if (distance < alignmentDistance) {
+            alignment.add(neighbor.userData.velocity);
+        }
+        if (distance < cohesionDistance) {
+            cohesion.add(neighbor.position);
+            count++;
+        }
+    });
+
+    if (count > 0) {
+        alignment.divideScalar(count).normalize().multiplyScalar(maxVelocity);
+        cohesion.divideScalar(count).sub(fish.position).normalize().multiplyScalar(maxVelocity);
+    }
+
+    fish.userData.velocity.add(separation).add(alignment).add(cohesion).clampLength(0, maxVelocity);
+}
+
+function applyAvoidance(swarm1, swarm2) {
+    swarm1.fishGroup.children.forEach(fish1 => {
+        swarm2.fishGroup.children.forEach(fish2 => {
+            const distance = fish1.position.distanceTo(fish2.position);
+            if (distance < separationDistance * 2) {
+                const diff = new THREE.Vector3().subVectors(fish1.position, fish2.position).normalize().multiplyScalar(avoidSpeed);
+                fish1.userData.velocity.add(diff);
+                fish2.userData.velocity.add(diff.negate());
+            }
+        });
+    });
 }
 
 // Erstellen Sie GUI-Elemente zur Steuerung
@@ -97,17 +208,50 @@ createSlider('Shark Height Y', -500, 500, 10, sharkHeightY, (event) => {
         secondSharkModel.position.y = sharkHeightY + secondSharkYOffset;
     }
 });
-createSlider('Outer Radius', 10, 500, 10, outerOrbitRadius, (event) => {
-    outerOrbitRadius = parseFloat(event.target.value);
-});
-createSlider('Outer Speed', 0.001, 0.02, 0.001, outerOrbitSpeed, (event) => {
-    outerOrbitSpeed = parseFloat(event.target.value);
-});
 
 // Mausbewegung überwachen
 document.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+});
+
+// Joystick-Bewegungssteuerung
+const leftJoystick = document.getElementById('left-joystick');
+const rightJoystick = document.getElementById('right-joystick');
+
+let isLeftJoystickActive = false;
+let isRightJoystickActive = false;
+let leftJoystickStart = { x: 0, y: 0 };
+let rightJoystickStart = { x: 0, y: 0 };
+
+leftJoystick.addEventListener('mousedown', (event) => {
+    isLeftJoystickActive = true;
+    leftJoystickStart.x = event.clientX;
+    leftJoystickStart.y = event.clientY;
+});
+rightJoystick.addEventListener('mousedown', (event) => {
+    isRightJoystickActive = true;
+    rightJoystickStart.x = event.clientX;
+    rightJoystickStart.y = event.clientY;
+});
+document.addEventListener('mouseup', () => {
+    isLeftJoystickActive = false;
+    isRightJoystickActive = false;
+});
+document.addEventListener('mousemove', (event) => {
+    if (isLeftJoystickActive) {
+        const deltaX = event.clientX - leftJoystickStart.x;
+        const deltaY = event.clientY - leftJoystickStart.y;
+        camera.position.x -= deltaX * 0.01;
+        camera.position.y += deltaY * 0.01;
+        leftJoystickStart.x = event.clientX;
+        leftJoystickStart.y = event.clientY;
+    }
+    if (isRightJoystickActive) {
+        const deltaX = event.clientX - rightJoystickStart.x;
+        camera.position.z -= deltaX * 0.01;
+        rightJoystickStart.x = event.clientX;
+    }
 });
 
 // Funktion zum Laden und Platzieren der Haie
@@ -132,9 +276,10 @@ function loadAndPlaceShark(modelPath, callback) {
         },
         function (xhr) {
             console.log((xhr.loaded / xhr.total) * 100 + '% geladen');
+            updateLoadingBar();
         },
         function (error) {
-            console.log('Ein Fehler ist aufgetreten');
+            console.log('Ein Fehler ist aufgetreten', error);
         }
     );
 }
@@ -166,6 +311,8 @@ loader.load(
         camera.position.y += size / -1.0;  // Leicht untersichtige Position
         camera.position.z += size / 3.0;
         camera.lookAt(center);
+
+        updateLoadingBar();
 
         // Laden und Platzieren des ersten Hais
         loadAndPlaceShark('/models/Angelote/AngelShark.gltf', (model, mixer) => {
@@ -242,20 +389,55 @@ loader.load(
                     questModel.rotation.y += questRotationSpeed;
 
                     // Partikel langsam und ruhig durch den gesamten Raum bewegen
-                    particles.forEach(particle => {
-                        particle.position.x += (Math.random() - 0.5) * 0.01; // Sehr langsame Bewegung
-                        particle.position.y += (Math.random() - 0.5) * 0.01; // Sehr langsame Bewegung
-                        particle.position.z += (Math.random() - 0.5) * 0.01; // Sehr langsame Bewegung
-                    });
+                    for (let i = 0; i < particleCount; i++) {
+                        const matrix = new THREE.Matrix4();
+                        particles.getMatrixAt(i, matrix);
+                        const position = new THREE.Vector3();
+                        position.setFromMatrixPosition(matrix);
+                        position.x += (Math.random() - 0.5) * 0.005; // Sehr langsame Bewegung
+                        position.y += (Math.random() - 0.5) * 0.005; // Sehr langsame Bewegung
+                        position.z += (Math.random() - 0.5) * 0.005; // Sehr langsame Bewegung
+                        matrix.setPosition(position);
+                        particles.setMatrixAt(i, matrix);
+                    }
+                    particles.instanceMatrix.needsUpdate = true;
 
                     // Partikel um die Z-Achse rotieren lassen
-                    particles.forEach(particle => {
+                    for (let i = 0; i < particleCount; i++) {
+                        const matrix = new THREE.Matrix4();
+                        particles.getMatrixAt(i, matrix);
+                        const position = new THREE.Vector3();
+                        position.setFromMatrixPosition(matrix);
                         const angle = 0.001; // Langsame Rotation
-                        const x = particle.position.x;
-                        const z = particle.position.z;
-                        particle.position.x = x * Math.cos(angle) - z * Math.sin(angle);
-                        particle.position.z = x * Math.sin(angle) + z * Math.cos(angle);
+                        const x = position.x;
+                        const z = position.z;
+                        position.x = x * Math.cos(angle) - z * Math.sin(angle);
+                        position.z = x * Math.sin(angle) + z * Math.cos(angle);
+                        matrix.setPosition(position);
+                        particles.setMatrixAt(i, matrix);
+                    }
+                    particles.instanceMatrix.needsUpdate = true;
+
+                    // Fischschwärme bewegen und Schwarmverhalten anwenden
+                    fishSwarms.forEach(({ fishGroup, fishOrbitRadius, fishHeightY, fishSpeed, fishYOffset }) => {
+                        outerAngle += fishSpeed;
+                        const fishX = Math.cos(outerAngle + fishYOffset) * fishOrbitRadius;
+                        const fishZ = Math.sin(outerAngle + fishYOffset) * fishOrbitRadius * Math.sin((outerAngle + fishYOffset) * 2);
+                        fishGroup.position.set(center.x + fishX, fishHeightY, center.z + fishZ);
+                        fishGroup.rotation.y = outerAngle + Math.PI / 2;
+
+                        fishGroup.children.forEach(fish => {
+                            const neighbors = fishGroup.children.filter(neighbor => neighbor !== fish);
+                            applyBoidsRules(fish, neighbors);
+
+                            fish.position.add(fish.userData.velocity);
+                            const fishDirection = new THREE.Vector3(-Math.sin(outerAngle + fishYOffset), 0, Math.cos(outerAngle + fishYOffset));
+                            fish.lookAt(fish.position.clone().add(fishDirection));
+                        });
                     });
+
+                    // Vermeidung von Kollisionen zwischen den Schwärmen
+                    applyAvoidance(fishSwarms[0], fishSwarms[1]);
                 }
 
                 animateSharks();
@@ -264,21 +446,24 @@ loader.load(
     },
     function (xhr) {
         console.log((xhr.loaded / xhr.total) + '% geladen');
+        updateLoadingBar();
     },
     function (error) {
-        console.log('Ein Fehler ist aufgetreten');
+        console.log('Ein Fehler ist aufgetreten', error);
     }
 );
 
 // HDRi Loading (Backdrop and Environment Map usw…)
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.6;
-renderer.outputEncoding = THREE.sRGBEncoding;
 new RGBELoader().load('/images/ocean_bluewater_phil.hdr', function (texture) {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.background = texture;
     scene.environment = texture;
+    updateLoadingBar();
 });
+
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.6;
+renderer.outputEncoding = THREE.sRGBEncoding;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 window.addEventListener('resize', onWindowResize, false);
@@ -301,5 +486,3 @@ function render() {
 }
 
 animate();
-
-//joa das wars erstmal, ich hoffe es gefällt als idee? Klar schieberegler etc sind erstmal zum erkunden, füg gern weitere dazu das wir n schickes Outlay finden.
